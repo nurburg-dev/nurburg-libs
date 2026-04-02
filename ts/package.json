@@ -1,0 +1,55 @@
+{
+  "name": "nurburg-libs",
+  "version": "0.1.0",
+  "description": "Middleware-style query hooks for pg, mysql2, and kafkajs",
+  "author": "Anunay <anunay@nurburg.dev>",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nurburg-dev/nurburg-libs.git"
+  },
+  "keywords": [
+    "pg",
+    "postgres",
+    "mysql2",
+    "kafkajs",
+    "drizzle",
+    "hooks",
+    "middleware"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "tsx --test src/test/**/*.test.ts",
+    "format": "prettier --write src",
+    "prepublishOnly": "npm run build"
+  },
+  "devDependencies": {
+    "@testcontainers/kafka": "^11.13.0",
+    "@testcontainers/mysql": "^11.13.0",
+    "@testcontainers/postgresql": "^11.13.0",
+    "@types/pg": "^8.20.0",
+    "prettier": "^3.8.1",
+    "testcontainers": "^11.13.0",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.2"
+  },
+  "dependencies": {
+    "kafkajs": "^2.2.4",
+    "mysql2": "^3.20.0",
+    "pg": "^8.20.0"
+  },
+  "packageManager": "pnpm@10.18.3"
+}
