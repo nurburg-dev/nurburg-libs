@@ -13,5 +13,8 @@ export { Kafka } from "./kafka";
 // Hooks
 export * from "./hooks";
 
+// Fetch
+export * from "./fetch";
+
 // Models
 export * from "./models";
