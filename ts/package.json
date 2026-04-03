@@ -1,6 +1,6 @@
 {
   "name": "nurburg-libs",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Middleware-style query hooks for pg, mysql2, and kafkajs",
   "author": "Anunay <anunay@nurburg.dev>",
   "license": "MIT",
