@@ -4,7 +4,8 @@ import {
     PoolConnection,
     PoolOptions,
 } from "mysql2/promise";
-import { QueryHook } from "./models";
+import { getHooksConfigV1, QueryHook } from "./models";
+import { getHooksFromCfg } from "./hooks";
 
 function buildChain(
     query: string,
@@ -64,9 +65,15 @@ export class Pool {
     private pool: MySQLPool;
     private hooks: QueryHook[];
 
-    constructor(config: PoolOptions, hooks: QueryHook[]) {
+    constructor(config: PoolOptions) {
         this.pool = createMySQLPool(config);
-        this.hooks = hooks;
+
+        const { mysql: mysqlCfg } = getHooksConfigV1();
+        if (!mysqlCfg) {
+            this.hooks = [];
+            return;
+        }
+        this.hooks = getHooksFromCfg(mysqlCfg);
     }
 
     async getConnection(): Promise<PoolConnection> {

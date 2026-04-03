@@ -8,7 +8,7 @@ export { Pool as PgPool } from "./pg";
 export { Pool as MySQLPool } from "./mysql2";
 
 // Kafka
-export { HookedKafka } from "./kafka";
+export { Kafka as HookedKafka } from "./kafka";
 
 // Hooks
 export * from "./hooks";

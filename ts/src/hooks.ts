@@ -1,4 +1,4 @@
-import { QueryHook, QueryHookError } from "./models";
+import { QueryHook, QueryHookError, SQLHookConfigV1 } from "./models";
 
 export function slowQueryHook(
     delayMs: number,
@@ -16,13 +16,20 @@ export function slowQueryHook(
     };
 }
 
-export function errorQueryHook(match: string | RegExp = "COMMIT"): QueryHook {
+export function errorQueryHook(
+    errProbability: number,
+    failCount: number,
+    match: string | RegExp = "COMMIT"
+): QueryHook {
+    let remainingFails = failCount;
+
     return async (query, _values, next) => {
         const matched =
             typeof match === "string"
                 ? query.trim().toUpperCase() === match.toUpperCase()
                 : match.test(query);
-        if (matched) {
+        if (matched && remainingFails > 0 && Math.random() <= errProbability) {
+            remainingFails -= 1;
             throw new QueryHookError(
                 query,
                 `Injected error for query: ${query}`
@@ -30,4 +37,13 @@ export function errorQueryHook(match: string | RegExp = "COMMIT"): QueryHook {
         }
         return next();
     };
+}
+
+export function getHooksFromCfg(cfg: SQLHookConfigV1[]): QueryHook[] {
+    return cfg.map(({ type, delayMs, errorProbability, errorCount }) => {
+        if (type === "errored_commit") {
+            return errorQueryHook(errorProbability ?? 1.0, errorCount ?? 10);
+        }
+        return slowQueryHook(delayMs ?? 500);
+    });
 }

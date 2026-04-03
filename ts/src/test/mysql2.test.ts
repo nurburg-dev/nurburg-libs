@@ -1,24 +1,22 @@
-import { test, describe, before, after } from "node:test";
+import { test, describe, before, after, afterEach } from "node:test";
 import { StartedMySqlContainer, MySqlContainer } from "@testcontainers/mysql";
 import { Pool } from "../mysql2";
 import assert from "node:assert/strict";
 import { errorQueryHook, slowQueryHook } from "../hooks";
+import { HooksConfigV1, hooksConfigV1EnvVar } from "../models";
 
 describe("mysql client", async (t) => {
     let container: StartedMySqlContainer;
     let pool: Pool;
     before(async () => {
         container = await new MySqlContainer("mysql:9").start();
-        pool = new Pool(
-            {
-                host: container.getHost(),
-                port: container.getPort(),
-                database: container.getDatabase(),
-                user: container.getUsername(),
-                password: container.getRootPassword(),
-            },
-            []
-        );
+        pool = new Pool({
+            host: container.getHost(),
+            port: container.getPort(),
+            database: container.getDatabase(),
+            user: container.getUsername(),
+            password: container.getRootPassword(),
+        });
 
         const client = await pool.getConnection();
         try {
@@ -40,16 +38,13 @@ describe("mysql client", async (t) => {
     });
 
     test("positive usecase should work", async () => {
-        const p = new Pool(
-            {
-                host: container.getHost(),
-                port: container.getPort(),
-                database: container.getDatabase(),
-                user: container.getUsername(),
-                password: container.getRootPassword(),
-            },
-            []
-        );
+        const p = new Pool({
+            host: container.getHost(),
+            port: container.getPort(),
+            database: container.getDatabase(),
+            user: container.getUsername(),
+            password: container.getRootPassword(),
+        });
 
         const client = await p.getConnection();
         try {
@@ -73,17 +68,27 @@ describe("mysql client", async (t) => {
         }
     });
 
+    afterEach(() => {
+        process.env[hooksConfigV1EnvVar] = "";
+    });
+
     test("error injection should work", async () => {
-        const p = new Pool(
-            {
-                host: container.getHost(),
-                port: container.getPort(),
-                database: container.getDatabase(),
-                user: container.getUsername(),
-                password: container.getRootPassword(),
-            },
-            [errorQueryHook("COMMIT")]
-        );
+        process.env[hooksConfigV1EnvVar] = JSON.stringify({
+            mysql: [
+                {
+                    type: "errored_commit",
+                    errorProbability: 1.0,
+                    errorCount: 10,
+                },
+            ],
+        } satisfies HooksConfigV1);
+        const p = new Pool({
+            host: container.getHost(),
+            port: container.getPort(),
+            database: container.getDatabase(),
+            user: container.getUsername(),
+            password: container.getRootPassword(),
+        });
 
         const client = await p.getConnection();
         try {
@@ -108,16 +113,21 @@ describe("mysql client", async (t) => {
     });
 
     test("delay injection should work", async () => {
-        const p = new Pool(
-            {
-                host: container.getHost(),
-                port: container.getPort(),
-                database: container.getDatabase(),
-                user: container.getUsername(),
-                password: container.getRootPassword(),
-            },
-            [slowQueryHook(5000, "COMMIT")]
-        );
+        process.env[hooksConfigV1EnvVar] = JSON.stringify({
+            mysql: [
+                {
+                    type: "slow_query",
+                    delayMs: 5000,
+                },
+            ],
+        } satisfies HooksConfigV1);
+        const p = new Pool({
+            host: container.getHost(),
+            port: container.getPort(),
+            database: container.getDatabase(),
+            user: container.getUsername(),
+            password: container.getRootPassword(),
+        });
 
         const client = await p.getConnection();
         try {
@@ -129,7 +139,7 @@ describe("mysql client", async (t) => {
             const start = new Date().getTime();
             await client.query("COMMIT");
             const elapsedTime = new Date().getTime() - start;
-            assert.equal(elapsedTime > 5000 && elapsedTime < 6000, true);
+            assert.equal(elapsedTime >= 5000 && elapsedTime < 6000, true);
         } catch (ex) {
             await client.query("ROLLBACK");
             throw ex;

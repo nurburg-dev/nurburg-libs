@@ -1,8 +1,9 @@
-import { test, describe, before, after } from "node:test";
+import { test, describe, before, after, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { KafkaContainer, StartedKafkaContainer } from "@testcontainers/kafka";
-import { HookedKafka } from "../kafka";
+import { Kafka } from "../kafka";
 import { flakyConsumerHook } from "../kafka/hooks";
+import { HooksConfigV1, hooksConfigV1EnvVar } from "../models";
 
 describe("kafka integration", async (t) => {
     let container: StartedKafkaContainer;
@@ -16,6 +17,11 @@ describe("kafka integration", async (t) => {
     after(async () => {
         await container.stop();
     });
+
+    afterEach(() => {
+        process.env[hooksConfigV1EnvVar] = "";
+    });
+
     test("produce and consume one message", async (t) => {
         const topic = "test-topic";
 
@@ -25,14 +31,11 @@ describe("kafka integration", async (t) => {
         const port = container.getMappedPort(9093);
         const broker = `${host}:${port}`;
 
-        const kafka = new HookedKafka(
-            {
-                brokers: [broker],
-                // Adding a short retry for the initial connection
-                retry: { retries: 5 },
-            },
-            {}
-        );
+        const kafka = new Kafka({
+            brokers: [broker],
+            // Adding a short retry for the initial connection
+            retry: { retries: 5 },
+        });
 
         const producer = kafka.producer();
         const consumer = kafka.consumer({ groupId: "test-group" });
@@ -81,15 +84,16 @@ describe("kafka integration", async (t) => {
         const host = container.getHost();
         const port = container.getMappedPort(9093);
         const broker = `${host}:${port}`;
-
-        const kafka = new HookedKafka(
-            { brokers: [broker] },
-            {
-                consumer: {
-                    eachMessage: [flakyConsumerHook(2)],
+        process.env[hooksConfigV1EnvVar] = JSON.stringify({
+            kafka: [
+                {
+                    type: "flaky_consumer",
+                    errorProbability: 1.0,
+                    errorCount: 10,
                 },
-            }
-        );
+            ],
+        } satisfies HooksConfigV1);
+        const kafka = new Kafka({ brokers: [broker] });
         const producer = kafka.producer();
         const consumer = kafka.consumer({ groupId: "double-delivery-group" });
 

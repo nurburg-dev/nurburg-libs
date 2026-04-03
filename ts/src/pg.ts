@@ -3,7 +3,8 @@ import {
     PoolClient as PgPoolClient,
     PoolConfig as PgPoolConfig,
 } from "pg";
-import { QueryHook } from "./models";
+import { getHooksConfigV1, QueryHook } from "./models";
+import { getHooksFromCfg } from "./hooks";
 
 function wrapClient(client: PgPoolClient, hooks: QueryHook[]): PgPoolClient {
     return new Proxy(client, {
@@ -39,9 +40,14 @@ function wrapClient(client: PgPoolClient, hooks: QueryHook[]): PgPoolClient {
 export class Pool extends PgPool {
     private hooks: QueryHook[];
 
-    constructor(config: PgPoolConfig, hooks: QueryHook[]) {
+    constructor(config: PgPoolConfig) {
         super(config);
-        this.hooks = hooks;
+        const { postgresql: psqlHooksCfg } = getHooksConfigV1();
+        if (!psqlHooksCfg) {
+            this.hooks = [];
+            return;
+        }
+        this.hooks = getHooksFromCfg(psqlHooksCfg);
     }
 
     async connect(): Promise<PgPoolClient> {

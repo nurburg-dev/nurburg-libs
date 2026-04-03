@@ -8,16 +8,18 @@ import {
 } from "kafkajs";
 import { KafkaHooks } from "./models";
 import { wrapConsumer, wrapProducer } from "./wrapper";
+import { getHooksFromCfg } from "./hooks";
+import { getHooksConfigV1 } from "../models";
 
 // --- HookedKafka ---
 
-export class HookedKafka {
+export class Kafka {
     private kafka: BaseKafka;
     private hooks: KafkaHooks;
 
-    constructor(config: KafkaConfig, hooks: KafkaHooks) {
+    constructor(config: KafkaConfig) {
         this.kafka = new BaseKafka(config);
-        this.hooks = hooks;
+        this.hooks = getHooksFromCfg(getHooksConfigV1().kafka ?? []);
     }
 
     producer(config?: ProducerConfig): Producer {

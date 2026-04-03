@@ -6,6 +6,7 @@ import {
 } from "@testcontainers/postgresql";
 import { Pool } from "../pg";
 import { errorQueryHook, slowQueryHook } from "../hooks";
+import { HooksConfigV1, hooksConfigV1EnvVar } from "../models";
 
 describe("postgresql postgres client", async (t) => {
     let container: StartedPostgreSqlContainer;
@@ -14,16 +15,13 @@ describe("postgresql postgres client", async (t) => {
     before(async () => {
         container = await new PostgreSqlContainer("postgres:17.9").start();
 
-        pool = new Pool(
-            {
-                host: container.getHost(),
-                port: container.getPort(),
-                database: container.getDatabase(),
-                user: container.getUsername(),
-                password: container.getPassword(),
-            },
-            []
-        );
+        pool = new Pool({
+            host: container.getHost(),
+            port: container.getPort(),
+            database: container.getDatabase(),
+            user: container.getUsername(),
+            password: container.getPassword(),
+        });
 
         const client = await pool.connect();
         try {
@@ -43,16 +41,13 @@ describe("postgresql postgres client", async (t) => {
     });
 
     test("positive usecase should work", async () => {
-        const p = new Pool(
-            {
-                host: container.getHost(),
-                port: container.getPort(),
-                database: container.getDatabase(),
-                user: container.getUsername(),
-                password: container.getPassword(),
-            },
-            []
-        );
+        const p = new Pool({
+            host: container.getHost(),
+            port: container.getPort(),
+            database: container.getDatabase(),
+            user: container.getUsername(),
+            password: container.getPassword(),
+        });
 
         const client = await p.connect();
         try {
@@ -75,16 +70,22 @@ describe("postgresql postgres client", async (t) => {
     });
 
     test("error injection should work", async () => {
-        const p = new Pool(
-            {
-                host: container.getHost(),
-                port: container.getPort(),
-                database: container.getDatabase(),
-                user: container.getUsername(),
-                password: container.getPassword(),
-            },
-            [errorQueryHook("COMMIT")]
-        );
+        process.env[hooksConfigV1EnvVar] = JSON.stringify({
+            postgresql: [
+                {
+                    type: "errored_commit",
+                    errorProbability: 1.0,
+                    errorCount: 10,
+                },
+            ],
+        } satisfies HooksConfigV1);
+        const p = new Pool({
+            host: container.getHost(),
+            port: container.getPort(),
+            database: container.getDatabase(),
+            user: container.getUsername(),
+            password: container.getPassword(),
+        });
 
         const client = await p.connect();
         try {
@@ -109,16 +110,21 @@ describe("postgresql postgres client", async (t) => {
     });
 
     test("delay injection should work", async () => {
-        const p = new Pool(
-            {
-                host: container.getHost(),
-                port: container.getPort(),
-                database: container.getDatabase(),
-                user: container.getUsername(),
-                password: container.getPassword(),
-            },
-            [slowQueryHook(5000, "COMMIT")]
-        );
+        process.env[hooksConfigV1EnvVar] = JSON.stringify({
+            postgresql: [
+                {
+                    type: "slow_query",
+                    delayMs: 5000,
+                },
+            ],
+        } satisfies HooksConfigV1);
+        const p = new Pool({
+            host: container.getHost(),
+            port: container.getPort(),
+            database: container.getDatabase(),
+            user: container.getUsername(),
+            password: container.getPassword(),
+        });
 
         const client = await p.connect();
         try {

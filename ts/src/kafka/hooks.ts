@@ -1,17 +1,13 @@
 // --- Hook examples ---
 
-import { ConsumerHook, ProducerHook } from "./models";
-
-export function logProducerHook(): ProducerHook {
-    return async (record, next) => {
-        const start = Date.now();
-        const result = await next();
-        console.log(
-            `[hooked-kafka] send topic=${record.topic} messages=${record.messages.length} time=${Date.now() - start}ms`
-        );
-        return result;
-    };
-}
+import { KafkaHookConfigV1 } from "../models";
+import {
+    ConsumerHook,
+    ProducerHook,
+    KafkaHooks,
+    ConsumerBatchHook,
+    ProducerBatchHook,
+} from "./models";
 
 export function slowProducerHook(delayMs: number): ProducerHook {
     return async (record, next) => {
@@ -21,13 +17,31 @@ export function slowProducerHook(delayMs: number): ProducerHook {
     };
 }
 
-export function logConsumerHook(): ConsumerHook {
+export function slowProducerBatchHook(delayMs: number): ProducerBatchHook {
+    return async (record, next) => {
+        console.log(`[hooked-kafka] send intercepted — sleeping ${delayMs}ms`);
+        await new Promise((r) => setTimeout(r, delayMs));
+        return next();
+    };
+}
+/**
+ * A consumer hook that fails the first `failCount` invocations and succeeds thereafter.
+ * Useful for testing retry logic where transient errors are expected.
+ */
+export function flakyConsumerHook(
+    errProbability: number,
+    failCount: number
+): ConsumerHook {
+    let remainingFails = failCount;
+
     return async (payload, next) => {
-        const start = Date.now();
         await next();
-        console.log(
-            `[hooked-kafka] message topic=${payload.topic} partition=${payload.partition} offset=${payload.message.offset} time=${Date.now() - start}ms`
-        );
+        if (Math.random() <= errProbability && remainingFails > 0) {
+            remainingFails -= 1;
+            throw new Error(
+                `flakyConsumerHook failed (${failCount - remainingFails}/${failCount}) for topic=${payload.topic}`
+            );
+        }
     };
 }
 
@@ -35,16 +49,52 @@ export function logConsumerHook(): ConsumerHook {
  * A consumer hook that fails the first `failCount` invocations and succeeds thereafter.
  * Useful for testing retry logic where transient errors are expected.
  */
-export function flakyConsumerHook(failCount: number): ConsumerHook {
+export function flakyConsumerBatchHook(
+    errProbability: number,
+    failCount: number
+): ConsumerBatchHook {
     let remainingFails = failCount;
 
     return async (payload, next) => {
         await next();
-        if (remainingFails > 0) {
+        if (Math.random() <= errProbability && remainingFails > 0) {
             remainingFails -= 1;
             throw new Error(
-                `flakyConsumerHook failed (${failCount - remainingFails}/${failCount}) for topic=${payload.topic}`
+                `flakyConsumerHook failed (${failCount - remainingFails}/${failCount})`
             );
         }
     };
+}
+
+export function getHooksFromCfg(cfg: KafkaHookConfigV1[]): KafkaHooks {
+    const h: KafkaHooks = {
+        producer: {
+            send: [],
+            sendBatch: [],
+        },
+        consumer: {
+            eachBatch: [],
+            eachMessage: [],
+        },
+    };
+    cfg.forEach((c) => {
+        if (c.type === "flaky_consumer") {
+            const hook = flakyConsumerHook(
+                c.errorProbability ?? 1.0,
+                c.errorCount ?? 10
+            );
+            const hook2 = flakyConsumerBatchHook(
+                c.errorProbability ?? 1.0,
+                c.errorCount ?? 10
+            );
+            h.consumer?.eachMessage?.push(hook);
+            h.consumer?.eachBatch?.push(hook2);
+        } else {
+            const hook = slowProducerHook(c.delayMs ?? 500);
+            const hook2 = slowProducerBatchHook(c.delayMs ?? 500);
+            h.producer?.send?.push(hook);
+            h.producer?.sendBatch?.push(hook2);
+        }
+    });
+    return h;
 }
