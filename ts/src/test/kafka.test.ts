@@ -84,15 +84,17 @@ describe("kafka integration", async (t) => {
         const host = container.getHost();
         const port = container.getMappedPort(9093);
         const broker = `${host}:${port}`;
-        process.env[hooksConfigV1EnvVar] = JSON.stringify({
-            kafka: [
-                {
-                    type: "flaky_consumer",
-                    errorProbability: 1.0,
-                    errorCount: 10,
-                },
-            ],
-        } satisfies HooksConfigV1);
+        process.env[hooksConfigV1EnvVar] = btoa(
+            JSON.stringify({
+                kafka: [
+                    {
+                        type: "flaky_consumer",
+                        errorProbability: 1.0,
+                        errorCount: 10,
+                    },
+                ],
+            } satisfies HooksConfigV1)
+        );
         const kafka = new Kafka({ brokers: [broker] });
         const producer = kafka.producer();
         const consumer = kafka.consumer({ groupId: "double-delivery-group" });

@@ -43,7 +43,7 @@ export function getHooksConfigV1(): HooksConfigV1 {
         return {} satisfies HooksConfigV1;
     }
     try {
-        return JSON.parse(str) as HooksConfigV1;
+        return JSON.parse(atob(str)) as HooksConfigV1;
     } catch (ex) {
         console.warn("not parsable hooks config", str);
         return {} satisfies HooksConfigV1;

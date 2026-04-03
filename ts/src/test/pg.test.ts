@@ -70,15 +70,17 @@ describe("postgresql postgres client", async (t) => {
     });
 
     test("error injection should work", async () => {
-        process.env[hooksConfigV1EnvVar] = JSON.stringify({
-            postgresql: [
-                {
-                    type: "errored_commit",
-                    errorProbability: 1.0,
-                    errorCount: 10,
-                },
-            ],
-        } satisfies HooksConfigV1);
+        process.env[hooksConfigV1EnvVar] = btoa(
+            JSON.stringify({
+                postgresql: [
+                    {
+                        type: "errored_commit",
+                        errorProbability: 1.0,
+                        errorCount: 10,
+                    },
+                ],
+            } satisfies HooksConfigV1)
+        );
         const p = new Pool({
             host: container.getHost(),
             port: container.getPort(),
@@ -110,14 +112,16 @@ describe("postgresql postgres client", async (t) => {
     });
 
     test("delay injection should work", async () => {
-        process.env[hooksConfigV1EnvVar] = JSON.stringify({
-            postgresql: [
-                {
-                    type: "slow_query",
-                    delayMs: 5000,
-                },
-            ],
-        } satisfies HooksConfigV1);
+        process.env[hooksConfigV1EnvVar] = btoa(
+            JSON.stringify({
+                postgresql: [
+                    {
+                        type: "slow_query",
+                        delayMs: 5000,
+                    },
+                ],
+            } satisfies HooksConfigV1)
+        );
         const p = new Pool({
             host: container.getHost(),
             port: container.getPort(),
