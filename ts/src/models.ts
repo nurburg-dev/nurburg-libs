@@ -47,6 +47,18 @@ export interface SQLHookConfigV1 {
 
 // { "postgresql": [{"type": "slow_query", "delayMs": 300 }]}
 // eyAicG9zdGdyZXNxbCI6IFt7InR5cGUiOiAic2xvd19xdWVyeSIsICJkZWxheU1zIjogMzAwIH1dfQ==
+export function debug(msg: string): void {
+    if (process.env.DEBUG === "nurburg") console.log(msg);
+}
+
+export function defaultErrorProbability(v: number | undefined): number {
+    return v ?? 1;
+}
+
+export function defaultErrorCount(v: number | undefined): number {
+    return v ?? 1000;
+}
+
 export function getHooksConfigV1(): HooksConfigV1 {
     const str = process.env[hooksConfigV1EnvVar];
     if (!str) {
@@ -55,7 +67,7 @@ export function getHooksConfigV1(): HooksConfigV1 {
     try {
         return JSON.parse(atob(str)) as HooksConfigV1;
     } catch (ex) {
-        console.warn("not parsable hooks config", str);
+        console.warn("[nurburg] failed to parse hooks config:", (ex as Error).message, "| raw value:", str);
         return {} satisfies HooksConfigV1;
     }
 }

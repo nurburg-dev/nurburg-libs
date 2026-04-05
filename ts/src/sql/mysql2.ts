@@ -4,7 +4,7 @@ import {
     PoolConnection,
     PoolOptions,
 } from "mysql2/promise";
-import { getHooksConfigV1, QueryHook } from "../models";
+import { getHooksConfigV1, QueryHook, debug } from "../models";
 import { getHooksFromCfg } from "./hooks";
 
 function buildChain(
@@ -70,9 +70,11 @@ export class Pool {
 
         const { mysql: mysqlCfg } = getHooksConfigV1();
         if (!mysqlCfg) {
+            debug("[nurburg] mysql: no hooks config");
             this.hooks = [];
             return;
         }
+        debug(`[nurburg] mysql: hooks config ${JSON.stringify(mysqlCfg)}`);
         this.hooks = getHooksFromCfg(mysqlCfg);
     }
 

@@ -9,7 +9,7 @@ import {
 import { KafkaHooks } from "./models";
 import { wrapConsumer, wrapProducer } from "./wrapper";
 import { getHooksFromCfg } from "./hooks";
-import { getHooksConfigV1 } from "../models";
+import { getHooksConfigV1, debug } from "../models";
 
 // --- HookedKafka ---
 
@@ -19,7 +19,9 @@ export class Kafka {
 
     constructor(config: KafkaConfig) {
         this.kafka = new BaseKafka(config);
-        this.hooks = getHooksFromCfg(getHooksConfigV1().kafka ?? []);
+        const kafkaCfg = getHooksConfigV1().kafka ?? [];
+        debug(`[nurburg] kafka: ${kafkaCfg.length ? `hooks config ${JSON.stringify(kafkaCfg)}` : "no hooks config"}`);
+        this.hooks = getHooksFromCfg(kafkaCfg);
     }
 
     producer(config?: ProducerConfig): Producer {

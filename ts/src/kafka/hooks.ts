@@ -1,6 +1,6 @@
 // --- Hook examples ---
 
-import { KafkaHookConfigV1 } from "../models";
+import { KafkaHookConfigV1, defaultErrorProbability, defaultErrorCount, debug } from "../models";
 import {
     ConsumerHook,
     ProducerHook,
@@ -10,16 +10,18 @@ import {
 } from "./models";
 
 export function slowProducerHook(delayMs: number): ProducerHook {
+    debug(`[nurburg] kafka slow_producer hook activated: delayMs=${delayMs}`);
     return async (record, next) => {
-        console.log(`[hooked-kafka] send intercepted — sleeping ${delayMs}ms`);
+        debug(`[nurburg] kafka slow_producer applying: delayMs=${delayMs} topic=${record.topic}`);
         await new Promise((r) => setTimeout(r, delayMs));
         return next();
     };
 }
 
 export function slowProducerBatchHook(delayMs: number): ProducerBatchHook {
-    return async (record, next) => {
-        console.log(`[hooked-kafka] send intercepted — sleeping ${delayMs}ms`);
+    debug(`[nurburg] kafka slow_producer_batch hook activated: delayMs=${delayMs}`);
+    return async (batch, next) => {
+        debug(`[nurburg] kafka slow_producer_batch applying: delayMs=${delayMs}`);
         await new Promise((r) => setTimeout(r, delayMs));
         return next();
     };
@@ -32,16 +34,19 @@ export function flakyConsumerHook(
     errProbability: number,
     failCount: number
 ): ConsumerHook {
+    debug(`[nurburg] kafka flaky_consumer hook activated: errProbability=${errProbability} failCount=${failCount}`);
     let remainingFails = failCount;
 
     return async (payload, next) => {
         await next();
         if (Math.random() <= errProbability && remainingFails > 0) {
             remainingFails -= 1;
+            debug(`[nurburg] kafka flaky_consumer applying: remainingFails=${remainingFails} topic=${payload.topic}`);
             throw new Error(
                 `flakyConsumerHook failed (${failCount - remainingFails}/${failCount}) for topic=${payload.topic}`
             );
         }
+        debug(`[nurburg] kafka flaky_consumer bypassing: topic=${payload.topic}`);
     };
 }
 
@@ -53,16 +58,19 @@ export function flakyConsumerBatchHook(
     errProbability: number,
     failCount: number
 ): ConsumerBatchHook {
+    debug(`[nurburg] kafka flaky_consumer_batch hook activated: errProbability=${errProbability} failCount=${failCount}`);
     let remainingFails = failCount;
 
     return async (payload, next) => {
         await next();
         if (Math.random() <= errProbability && remainingFails > 0) {
             remainingFails -= 1;
+            debug(`[nurburg] kafka flaky_consumer_batch applying: remainingFails=${remainingFails}`);
             throw new Error(
                 `flakyConsumerHook failed (${failCount - remainingFails}/${failCount})`
             );
         }
+        debug(`[nurburg] kafka flaky_consumer_batch bypassing`);
     };
 }
 
@@ -80,12 +88,12 @@ export function getHooksFromCfg(cfg: KafkaHookConfigV1[]): KafkaHooks {
     cfg.forEach((c) => {
         if (c.type === "flaky_consumer") {
             const hook = flakyConsumerHook(
-                c.errorProbability ?? 1.0,
-                c.errorCount ?? 10
+                defaultErrorProbability(c.errorProbability),
+                defaultErrorCount(c.errorCount)
             );
             const hook2 = flakyConsumerBatchHook(
-                c.errorProbability ?? 1.0,
-                c.errorCount ?? 10
+                defaultErrorProbability(c.errorProbability),
+                defaultErrorCount(c.errorCount)
             );
             h.consumer?.eachMessage?.push(hook);
             h.consumer?.eachBatch?.push(hook2);

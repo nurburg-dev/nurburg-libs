@@ -1,10 +1,14 @@
-import { getHooksConfigV1 } from "../models";
+import { getHooksConfigV1, debug } from "../models";
 import { FetchHook } from "./models";
 import { getFetchHooksFromCfg } from "./hooks";
 
 export function hookedFetch(fetchFn: typeof fetch = fetch): typeof fetch {
     const { fetch: fetchHooksCfg } = getHooksConfigV1();
-    if (!fetchHooksCfg?.length) return fetchFn;
+    if (!fetchHooksCfg?.length) {
+        debug("[nurburg] fetch: no hooks config");
+        return fetchFn;
+    }
+    debug(`[nurburg] fetch: hooks config ${JSON.stringify(fetchHooksCfg)}`);
 
     const hooks = getFetchHooksFromCfg(fetchHooksCfg);
 

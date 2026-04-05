@@ -1,4 +1,4 @@
-import { QueryHook, QueryHookError, SQLHookConfigV1 } from "../models";
+import { QueryHook, QueryHookError, SQLHookConfigV1, defaultErrorProbability, defaultErrorCount, debug } from "../models";
 
 const DEFAULT_PATTERN = /^COMMIT$/i;
 
@@ -28,9 +28,13 @@ function toPattern(queryPattern: string | undefined): RegExp {
 }
 
 export function slowQueryHook(delayMs: number, match: RegExp): QueryHook {
+    debug(`[nurburg] sql slow_query hook activated: delayMs=${delayMs} pattern=${match}`);
     return async (query, _values, next) => {
         if (match.test(query)) {
+            debug(`[nurburg] sql slow_query applying: delayMs=${delayMs} query="${query}"`);
             await new Promise((r) => setTimeout(r, delayMs));
+        } else {
+            debug(`[nurburg] sql slow_query bypassing: query="${query}"`);
         }
         return next();
     };
@@ -41,20 +45,16 @@ export function errorQueryHook(
     failCount: number,
     match: RegExp
 ): QueryHook {
+    debug(`[nurburg] sql errored_commit hook activated: errProbability=${errProbability} failCount=${failCount} pattern=${match}`);
     let remainingFails = failCount;
 
     return async (query, _values, next) => {
-        if (
-            match.test(query) &&
-            remainingFails > 0 &&
-            Math.random() <= errProbability
-        ) {
+        if (match.test(query) && remainingFails > 0 && Math.random() <= errProbability) {
             remainingFails -= 1;
-            throw new QueryHookError(
-                query,
-                `Injected error for query: ${query}`
-            );
+            debug(`[nurburg] sql errored_commit applying: remainingFails=${remainingFails} query="${query}"`);
+            throw new QueryHookError(query, `Injected error for query: ${query}`);
         }
+        debug(`[nurburg] sql errored_commit bypassing: query="${query}"`);
         return next();
     };
 }
@@ -65,8 +65,8 @@ export function getHooksFromCfg(cfg: SQLHookConfigV1[]): QueryHook[] {
             const match = toPattern(queryPattern);
             if (type === "errored_commit") {
                 return errorQueryHook(
-                    errorProbability ?? 1.0,
-                    errorCount ?? 10,
+                    defaultErrorProbability(errorProbability),
+                    defaultErrorCount(errorCount),
                     match
                 );
             }

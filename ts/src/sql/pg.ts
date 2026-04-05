@@ -3,7 +3,7 @@ import {
     PoolClient as PgPoolClient,
     PoolConfig as PgPoolConfig,
 } from "pg";
-import { getHooksConfigV1, QueryHook } from "../models";
+import { getHooksConfigV1, QueryHook, debug } from "../models";
 import { getHooksFromCfg } from "./hooks";
 
 function wrapClient(client: PgPoolClient, hooks: QueryHook[]): PgPoolClient {
@@ -44,9 +44,11 @@ export class Pool extends PgPool {
         super(config);
         const { postgresql: psqlHooksCfg } = getHooksConfigV1();
         if (!psqlHooksCfg) {
+            debug("[nurburg] pg: no hooks config");
             this.hooks = [];
             return;
         }
+        debug(`[nurburg] pg: hooks config ${JSON.stringify(psqlHooksCfg)}`);
         this.hooks = getHooksFromCfg(psqlHooksCfg);
     }
 

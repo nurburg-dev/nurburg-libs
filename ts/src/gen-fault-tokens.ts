@@ -10,8 +10,15 @@ function printToken(label: string, config: HooksConfigV1): void {
     console.log(`  TOKEN: ${toToken(config)}`);
 }
 
-printToken("fetch / pre_error (always)", {
-    fetch: [{ type: "pre_error", errorProbability: 1 }],
+printToken("fetch", {
+    fetch: [
+        {
+            type: "post_error",
+            errorProbability: 1,
+            errorCount: 10,
+            urlPattern: "/flight-bookings/block",
+        },
+    ],
 });
 
 printToken("postgresql / errored_commit (always)", {
