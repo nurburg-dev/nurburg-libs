@@ -13,7 +13,8 @@ export function hookedFetch(fetchFn: typeof fetch = fetch): typeof fetch {
         let chain: () => Promise<Response> = next;
         for (const hook of [...hooks].reverse()) {
             const currentNext = chain;
-            chain = () => hook(url as string | URL | Request, init, currentNext);
+            chain = () =>
+                hook(url as string | URL | Request, init, currentNext);
         }
         return chain();
     };

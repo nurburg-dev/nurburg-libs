@@ -20,14 +20,19 @@ describe("hooked fetch", () => {
 
     test("pre_error throws before request is made", async () => {
         let called = false;
-        const trackingFetch = async (url: string | URL | Request, init?: RequestInit) => {
+        const trackingFetch = async (
+            url: string | URL | Request,
+            init?: RequestInit
+        ) => {
             called = true;
             return fetch(url, init);
         };
 
         process.env[hooksConfigV1EnvVar] = btoa(
             JSON.stringify({
-                fetch: [{ type: "pre_error", errorProbability: 1.0, errorCount: 5 }],
+                fetch: [
+                    { type: "pre_error", errorProbability: 1.0, errorCount: 5 },
+                ],
             } satisfies HooksConfigV1)
         );
 
@@ -45,14 +50,23 @@ describe("hooked fetch", () => {
 
     test("post_error throws after request completes", async () => {
         let called = false;
-        const trackingFetch = async (url: string | URL | Request, init?: RequestInit) => {
+        const trackingFetch = async (
+            url: string | URL | Request,
+            init?: RequestInit
+        ) => {
             called = true;
             return fetch(url, init);
         };
 
         process.env[hooksConfigV1EnvVar] = btoa(
             JSON.stringify({
-                fetch: [{ type: "post_error", errorProbability: 1.0, errorCount: 5 }],
+                fetch: [
+                    {
+                        type: "post_error",
+                        errorProbability: 1.0,
+                        errorCount: 5,
+                    },
+                ],
             } satisfies HooksConfigV1)
         );
 
@@ -82,5 +96,92 @@ describe("hooked fetch", () => {
 
         assert.equal(res.status, 200);
         assert.equal(elapsed >= 200, true);
+    });
+
+    test("pre_error with matching urlPattern throws", async () => {
+        process.env[hooksConfigV1EnvVar] = btoa(
+            JSON.stringify({
+                fetch: [
+                    {
+                        type: "pre_error",
+                        errorProbability: 1.0,
+                        errorCount: 5,
+                        urlPattern: "jsonplaceholder",
+                    },
+                ],
+            } satisfies HooksConfigV1)
+        );
+
+        const f = hookedFetch();
+        await assert.rejects(
+            () => f(TEST_URL),
+            (err: Error) => {
+                assert.equal(err instanceof FetchHookError, true);
+                return true;
+            }
+        );
+    });
+
+    test("pre_error with non-matching urlPattern passes through", async () => {
+        process.env[hooksConfigV1EnvVar] = btoa(
+            JSON.stringify({
+                fetch: [
+                    {
+                        type: "pre_error",
+                        errorProbability: 1.0,
+                        errorCount: 5,
+                        urlPattern: "example\\.com",
+                    },
+                ],
+            } satisfies HooksConfigV1)
+        );
+
+        const f = hookedFetch();
+        const res = await f(TEST_URL);
+        assert.equal(res.status, 200);
+    });
+
+    test("slow_request with matching urlPattern adds delay", async () => {
+        process.env[hooksConfigV1EnvVar] = btoa(
+            JSON.stringify({
+                fetch: [
+                    {
+                        type: "slow_request",
+                        delayMs: 200,
+                        urlPattern: "jsonplaceholder",
+                    },
+                ],
+            } satisfies HooksConfigV1)
+        );
+
+        const f = hookedFetch();
+        const start = Date.now();
+        const res = await f(TEST_URL);
+        const elapsed = Date.now() - start;
+
+        assert.equal(res.status, 200);
+        assert.equal(elapsed >= 200, true);
+    });
+
+    test("slow_request with non-matching urlPattern skips delay", async () => {
+        process.env[hooksConfigV1EnvVar] = btoa(
+            JSON.stringify({
+                fetch: [
+                    {
+                        type: "slow_request",
+                        delayMs: 2000,
+                        urlPattern: "example\\.com",
+                    },
+                ],
+            } satisfies HooksConfigV1)
+        );
+
+        const f = hookedFetch();
+        const start = Date.now();
+        const res = await f(TEST_URL);
+        const elapsed = Date.now() - start;
+
+        assert.equal(res.status, 200);
+        assert.equal(elapsed < 2000, true);
     });
 });

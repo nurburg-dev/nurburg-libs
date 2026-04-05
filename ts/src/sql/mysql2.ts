@@ -4,7 +4,7 @@ import {
     PoolConnection,
     PoolOptions,
 } from "mysql2/promise";
-import { getHooksConfigV1, QueryHook } from "./models";
+import { getHooksConfigV1, QueryHook } from "../models";
 import { getHooksFromCfg } from "./hooks";
 
 function buildChain(

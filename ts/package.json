@@ -1,6 +1,6 @@
 {
   "name": "nurburg-libs",
-  "version": "0.4.1",
+  "version": "0.5.1",
   "description": "Middleware-style query hooks for pg, mysql2, and kafkajs",
   "author": "Anunay <anunay@nurburg.dev>",
   "license": "MIT",
@@ -34,7 +34,8 @@
     "build": "tsc",
     "test": "tsx --test src/test/**/*.test.ts",
     "format": "prettier --write src",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "gen-fault-tokens": "tsx src/gen-fault-tokens.ts"
   },
   "devDependencies": {
     "@testcontainers/kafka": "^11.13.0",

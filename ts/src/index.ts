@@ -2,16 +2,16 @@
 // Middleware-style query hooks for pg, mysql2, and kafkajs
 
 // PostgreSQL
-export { Pool as PgPool } from "./pg";
+export { Pool as PgPool } from "./sql/pg";
 
 // MySQL
-export { Pool as MySQLPool } from "./mysql2";
+export { Pool as MySQLPool } from "./sql/mysql2";
 
 // Kafka
 export { Kafka } from "./kafka";
 
-// Hooks
-export * from "./hooks";
+// SQL Hooks
+export * from "./sql/hooks";
 
 // Fetch
 export * from "./fetch";

@@ -4,8 +4,8 @@ import {
     PostgreSqlContainer,
     StartedPostgreSqlContainer,
 } from "@testcontainers/postgresql";
-import { Pool } from "../pg";
-import { errorQueryHook, slowQueryHook } from "../hooks";
+import { Pool } from "../sql/pg";
+import { errorQueryHook, slowQueryHook } from "../sql";
 import { HooksConfigV1, hooksConfigV1EnvVar } from "../models";
 
 describe("postgresql postgres client", async (t) => {
@@ -144,6 +144,49 @@ describe("postgresql postgres client", async (t) => {
         } catch (ex) {
             await client.query("ROLLBACK");
             throw ex;
+        } finally {
+            client.release();
+            await p.end();
+        }
+    });
+
+    test("error injection on insert to specific table should fail write but not commit", async () => {
+        process.env[hooksConfigV1EnvVar] = btoa(
+            JSON.stringify({
+                postgresql: [
+                    {
+                        type: "errored_commit",
+                        errorProbability: 1.0,
+                        errorCount: 10,
+                        queryPattern: "INSERT INTO employees",
+                    },
+                ],
+            } satisfies HooksConfigV1)
+        );
+        const p = new Pool({
+            host: container.getHost(),
+            port: container.getPort(),
+            database: container.getDatabase(),
+            user: container.getUsername(),
+            password: container.getPassword(),
+        });
+
+        const client = await p.connect();
+        try {
+            await client.query("BEGIN");
+            await assert.rejects(
+                () =>
+                    client.query(
+                        `INSERT INTO employees (first_name, last_name, email, salary) VALUES ($1, $2, $3, $4)`,
+                        ["anunay", "biswas", "tester+table@nurburg.dev", 1000]
+                    ),
+                (err: Error) => {
+                    assert.strictEqual(err.name, "QueryHookError");
+                    return true;
+                }
+            );
+            // COMMIT itself should not be intercepted
+            await client.query("ROLLBACK");
         } finally {
             client.release();
             await p.end();

@@ -3,7 +3,7 @@ import {
     PoolClient as PgPoolClient,
     PoolConfig as PgPoolConfig,
 } from "pg";
-import { getHooksConfigV1, QueryHook } from "./models";
+import { getHooksConfigV1, QueryHook } from "../models";
 import { getHooksFromCfg } from "./hooks";
 
 function wrapClient(client: PgPoolClient, hooks: QueryHook[]): PgPoolClient {

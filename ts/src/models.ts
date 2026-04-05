@@ -38,6 +38,8 @@ export interface SQLHookConfigV1 {
     delayMs?: number;
     errorProbability?: number;
     errorCount?: number;
+    /** Regex pattern matched against the query string. Defaults to matching COMMIT. */
+    queryPattern?: string;
 }
 
 // { "postgresql": [{"type": "errored_commit", "errorCount": 2, "errorProbability": 1}]}

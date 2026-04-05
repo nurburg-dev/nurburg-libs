@@ -1,8 +1,8 @@
 import { test, describe, before, after, afterEach } from "node:test";
 import { StartedMySqlContainer, MySqlContainer } from "@testcontainers/mysql";
-import { Pool } from "../mysql2";
+import { Pool } from "../sql/mysql2";
 import assert from "node:assert/strict";
-import { errorQueryHook, slowQueryHook } from "../hooks";
+import { errorQueryHook, slowQueryHook } from "../sql";
 import { HooksConfigV1, hooksConfigV1EnvVar } from "../models";
 
 describe("mysql client", async (t) => {
@@ -152,6 +152,49 @@ describe("mysql client", async (t) => {
             await p.end();
         }
     });
+    test("error injection on insert to specific table should fail write but not commit", async () => {
+        process.env[hooksConfigV1EnvVar] = btoa(
+            JSON.stringify({
+                mysql: [
+                    {
+                        type: "errored_commit",
+                        errorProbability: 1.0,
+                        errorCount: 10,
+                        queryPattern: "INSERT INTO employees",
+                    },
+                ],
+            } satisfies HooksConfigV1)
+        );
+        const p = new Pool({
+            host: container.getHost(),
+            port: container.getPort(),
+            database: container.getDatabase(),
+            user: container.getUsername(),
+            password: container.getRootPassword(),
+        });
+
+        const client = await p.getConnection();
+        try {
+            await client.query("BEGIN");
+            await assert.rejects(
+                () =>
+                    client.query(
+                        `INSERT INTO employees (first_name, last_name, email, salary) VALUES (?, ?, ?, ?)`,
+                        ["anunay", "biswas", "tester+table@nurburg.dev", 1000]
+                    ),
+                (err: Error) => {
+                    assert.strictEqual(err.name, "QueryHookError");
+                    return true;
+                }
+            );
+            // COMMIT itself should not be intercepted
+            await client.query("ROLLBACK");
+        } finally {
+            client.release();
+            await p.end();
+        }
+    });
+
     after(async () => {
         await pool.end();
         await container.stop();

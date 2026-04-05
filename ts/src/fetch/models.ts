@@ -20,4 +20,6 @@ export interface FetchHookConfigV1 {
     delayMs?: number;
     errorProbability?: number;
     errorCount?: number;
+    /** Regex pattern matched against the request URL. Defaults to "*" (matches all URLs). */
+    urlPattern?: string;
 }

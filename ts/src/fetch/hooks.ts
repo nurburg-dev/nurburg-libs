@@ -1,20 +1,34 @@
 import { FetchHookConfigV1 } from "./models";
 import { FetchHook, FetchHookError } from "./models";
 
+function urlMatches(url: string | URL | Request, pattern: RegExp): boolean {
+    const str = url instanceof Request ? url.url : String(url);
+    return pattern.test(str);
+}
+
+function toPattern(urlPattern: string | undefined): RegExp {
+    return urlPattern && urlPattern !== "*" ? new RegExp(urlPattern) : /.*/;
+}
+
 /**
  * Throws before the request is made.
  * Simulates the network being unavailable or the client failing pre-flight.
  */
 export function preErrorFetchHook(
     errProbability: number,
-    failCount: number
+    failCount: number,
+    urlPattern: RegExp
 ): FetchHook {
     let remainingFails = failCount;
 
     return async (url, _init, next) => {
+        if (!urlMatches(url, urlPattern)) return next();
         if (remainingFails > 0 && Math.random() <= errProbability) {
             remainingFails -= 1;
-            throw new FetchHookError(url, `Injected pre-request error for: ${url}`);
+            throw new FetchHookError(
+                url,
+                `Injected pre-request error for: ${url}`
+            );
         }
         return next();
     };
@@ -26,15 +40,20 @@ export function preErrorFetchHook(
  */
 export function postErrorFetchHook(
     errProbability: number,
-    failCount: number
+    failCount: number,
+    urlPattern: RegExp
 ): FetchHook {
     let remainingFails = failCount;
 
     return async (url, _init, next) => {
         const response = await next();
+        if (!urlMatches(url, urlPattern)) return response;
         if (remainingFails > 0 && Math.random() <= errProbability) {
             remainingFails -= 1;
-            throw new FetchHookError(url, `Injected post-request error for: ${url}`);
+            throw new FetchHookError(
+                url,
+                `Injected post-request error for: ${url}`
+            );
         }
         return response;
     };
@@ -43,21 +62,33 @@ export function postErrorFetchHook(
 /**
  * Adds a delay before the request is made.
  */
-export function slowFetchHook(delayMs: number): FetchHook {
-    return async (_url, _init, next) => {
+export function slowFetchHook(delayMs: number, urlPattern: RegExp): FetchHook {
+    return async (url, _init, next) => {
+        if (!urlMatches(url, urlPattern)) return next();
         await new Promise((r) => setTimeout(r, delayMs));
         return next();
     };
 }
 
 export function getFetchHooksFromCfg(cfg: FetchHookConfigV1[]): FetchHook[] {
-    return cfg.map(({ type, delayMs, errorProbability, errorCount }) => {
-        if (type === "pre_error") {
-            return preErrorFetchHook(errorProbability ?? 1.0, errorCount ?? 10);
+    return cfg.map(
+        ({ type, delayMs, errorProbability, errorCount, urlPattern }) => {
+            const pattern = toPattern(urlPattern);
+            if (type === "pre_error") {
+                return preErrorFetchHook(
+                    errorProbability ?? 1.0,
+                    errorCount ?? 10,
+                    pattern
+                );
+            }
+            if (type === "post_error") {
+                return postErrorFetchHook(
+                    errorProbability ?? 1.0,
+                    errorCount ?? 10,
+                    pattern
+                );
+            }
+            return slowFetchHook(delayMs ?? 500, pattern);
         }
-        if (type === "post_error") {
-            return postErrorFetchHook(errorProbability ?? 1.0, errorCount ?? 10);
-        }
-        return slowFetchHook(delayMs ?? 500);
-    });
+    );
 }
